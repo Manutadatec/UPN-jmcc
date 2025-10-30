@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MSV - CRUD Estudiantes (v1)</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;margin:20px;background:#f7f7f7}
+    .card{background:#fff;padding:16px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.08);max-width:900px;margin:auto}
+    h1{margin:0 0 12px}
+    form{display:flex;gap:8px;flex-wrap:wrap}
+    input,button{padding:8px;border-radius:6px;border:1px solid #ccc}
+    button{cursor:pointer}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{padding:8px;border-bottom:1px solid #eee;text-align:left}
+    .small{font-size:0.9rem;color:#555}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>MSV - CRUD Estudiantes (v1)</h1>
+    <p class="small">Versión 1: crear estudiante y listar. Datos guardados en localStorage.</p>
+
+    <form id="form-student">
+      <input type="text" id="nombre" placeholder="Nombre completo" required>
+      <input type="number" id="edad" placeholder="Edad" min="1" required>
+      <input type="text" id="curso" placeholder="Curso" required>
+      <button type="submit">Agregar</button>
+    </form>
+
+    <table id="students-table" aria-label="Lista de estudiantes">
+      <thead>
+        <tr><th>#</th><th>Nombre</th><th>Edad</th><th>Curso</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    // Simple CRUD (v1): Create + Read using localStorage
+    const KEY = 'msv_estudiantes_v1';
+    function load() {
+      return JSON.parse(localStorage.getItem(KEY) || '[]');
+    }
+    function save(list) {
+      localStorage.setItem(KEY, JSON.stringify(list));
+    }
+    function render() {
+      const tbody = document.querySelector('#students-table tbody');
+      const list = load();
+      tbody.innerHTML = list.map((s,i)=>
+        `<tr><td>${i+1}</td><td>${escapeHtml(s.nombre)}</td><td>${s.edad}</td><td>${escapeHtml(s.curso)}</td></tr>`
+      ).join('');
+    }
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    }
+
+    document.getElementById('form-student').addEventListener('submit', e=>{
+      e.preventDefault();
+      const nombre = document.getElementById('nombre').value.trim();
+      const edad = parseInt(document.getElementById('edad').value,10);
+      const curso = document.getElementById('curso').value.trim();
+      if(!nombre || !curso || !edad) return alert('Completa todos los campos.');
+      const list = load();
+      list.push({nombre, edad, curso});
+      save(list);
+      render();
+      e.target.reset();
+    });
+
+    // init
+    render();
+  </script>
+</body>
+</html>
