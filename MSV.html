@@ -3,73 +3,192 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>MSV - CRUD Estudiantes (v1)</title>
+  <title>MSV - CRUD Estudiantes (v2)</title>
   <style>
-    body{font-family:Arial,Helvetica,sans-serif;margin:20px;background:#f7f7f7}
-    .card{background:#fff;padding:16px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.08);max-width:900px;margin:auto}
-    h1{margin:0 0 12px}
-    form{display:flex;gap:8px;flex-wrap:wrap}
-    input,button{padding:8px;border-radius:6px;border:1px solid #ccc}
-    button{cursor:pointer}
-    table{width:100%;border-collapse:collapse;margin-top:12px}
-    th,td{padding:8px;border-bottom:1px solid #eee;text-align:left}
-    .small{font-size:0.9rem;color:#555}
+    :root{--card-bg:#fff;--page-bg:#f2f6fb;--accent:#2b6cb0}
+    body{font-family:Inter,Arial,Helvetica,sans-serif;margin:18px;background:var(--page-bg);color:#222}
+    .card{background:var(--card-bg);padding:18px;border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,0.08);max-width:1000px;margin:auto}
+    h1{margin:0 0 6px}
+    .muted{color:#555;font-size:0.95rem}
+    form{display:grid;grid-template-columns:1fr 140px 140px;gap:10px;align-items:center;margin-top:12px}
+    input,select,button{padding:10px;border-radius:8px;border:1px solid #d1d5db;font-size:0.95rem}
+    .controls{display:flex;gap:8px;align-items:center;margin-top:14px}
+    .flex-between{display:flex;justify-content:space-between;align-items:center}
+    table{width:100%;border-collapse:collapse;margin-top:14px}
+    th,td{text-align:left;padding:10px;border-bottom:1px solid #e6eef8}
+    .actions button{margin-right:6px}
+    .btn{padding:8px 10px;border-radius:8px;border:none;cursor:pointer}
+    .btn-primary{background:var(--accent);color:#fff}
+    .btn-danger{background:#e53e3e;color:#fff}
+    .btn-ghost{background:transparent;border:1px solid #cbd5e1}
+    .search{width:260px}
+    @media(max-width:720px){
+      form{grid-template-columns:1fr;gap:8px}
+      .search{width:100%}
+    }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>MSV - CRUD Estudiantes (v1)</h1>
-    <p class="small">Versión 1: crear estudiante y listar. Datos guardados en localStorage.</p>
+  <div class="card" role="main">
+    <div class="flex-between">
+      <div>
+        <h1>MSV - CRUD Estudiantes (v2)</h1>
+        <div class="muted">v2 • Ahora incluye editar, eliminar, búsqueda y validación. Persistencia en localStorage.</div>
+      </div>
+      <div class="controls">
+        <input class="search" id="search" placeholder="Buscar por nombre o curso">
+        <button id="clearAll" class="btn btn-ghost">Limpiar todo</button>
+      </div>
+    </div>
 
-    <form id="form-student">
-      <input type="text" id="nombre" placeholder="Nombre completo" required>
-      <input type="number" id="edad" placeholder="Edad" min="1" required>
-      <input type="text" id="curso" placeholder="Curso" required>
-      <button type="submit">Agregar</button>
+    <form id="form-student" aria-label="Formulario estudiante">
+      <input type="text" id="nombre" placeholder="Nombre completo" required maxlength="100" autocomplete="off">
+      <input type="number" id="edad" placeholder="Edad" min="1" max="120" required>
+      <input type="text" id="curso" placeholder="Curso" required maxlength="50">
+      <button type="submit" class="btn btn-primary">Guardar</button>
     </form>
 
     <table id="students-table" aria-label="Lista de estudiantes">
       <thead>
-        <tr><th>#</th><th>Nombre</th><th>Edad</th><th>Curso</th></tr>
+        <tr><th>#</th><th>Nombre</th><th>Edad</th><th>Curso</th><th>Acciones</th></tr>
       </thead>
       <tbody></tbody>
     </table>
   </div>
 
   <script>
-    // Simple CRUD (v1): Create + Read using localStorage
-    const KEY = 'msv_estudiantes_v1';
+    // MSV v2: CRUD completo en un solo archivo HTML (usa localStorage)
+    const KEY = 'msv_estudiantes_v2';
+
     function load() {
       return JSON.parse(localStorage.getItem(KEY) || '[]');
     }
     function save(list) {
       localStorage.setItem(KEY, JSON.stringify(list));
     }
-    function render() {
-      const tbody = document.querySelector('#students-table tbody');
-      const list = load();
-      tbody.innerHTML = list.map((s,i)=>
-        `<tr><td>${i+1}</td><td>${escapeHtml(s.nombre)}</td><td>${s.edad}</td><td>${escapeHtml(s.curso)}</td></tr>`
-      ).join('');
+    function uid() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
     }
     function escapeHtml(str) {
       return String(str).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     }
 
-    document.getElementById('form-student').addEventListener('submit', e=>{
+    // Render con filtro opcional
+    function render(filter='') {
+      const tbody = document.querySelector('#students-table tbody');
+      let list = load();
+      if(filter) {
+        const q = filter.toLowerCase();
+        list = list.filter(s => s.nombre.toLowerCase().includes(q) || s.curso.toLowerCase().includes(q));
+      }
+      if(list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="muted">No hay estudiantes registrados.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map((s,i) => `
+        <tr>
+          <td>${i+1}</td>
+          <td>${escapeHtml(s.nombre)}</td>
+          <td>${s.edad}</td>
+          <td>${escapeHtml(s.curso)}</td>
+          <td class="actions">
+            <button class="btn btn-ghost" data-action="edit" data-id="${s.id}">Editar</button>
+            <button class="btn btn-danger" data-action="delete" data-id="${s.id}">Eliminar</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Add or update
+    function addStudent(obj) {
+      const list = load();
+      list.push(obj);
+      save(list);
+      render(document.getElementById('search').value);
+    }
+    function updateStudent(id, data) {
+      const list = load();
+      const idx = list.findIndex(x=>x.id===id);
+      if(idx===-1) return;
+      list[idx] = {...list[idx], ...data};
+      save(list);
+      render(document.getElementById('search').value);
+    }
+    function deleteStudent(id) {
+      let list = load();
+      list = list.filter(x=>x.id!==id);
+      save(list);
+      render(document.getElementById('search').value);
+    }
+
+    // Form handling & validation
+    const form = document.getElementById('form-student');
+    let editingId = null;
+
+    form.addEventListener('submit', e=>{
       e.preventDefault();
       const nombre = document.getElementById('nombre').value.trim();
       const edad = parseInt(document.getElementById('edad').value,10);
       const curso = document.getElementById('curso').value.trim();
-      if(!nombre || !curso || !edad) return alert('Completa todos los campos.');
-      const list = load();
-      list.push({nombre, edad, curso});
-      save(list);
-      render();
-      e.target.reset();
+      // Validaciones extras
+      if(nombre.length < 3) return alert('Nombre mínimo 3 caracteres.');
+      if(!Number.isInteger(edad) || edad < 1 || edad > 120) return alert('Edad inválida.');
+      if(curso.length < 2) return alert('Curso mínimo 2 caracteres.');
+
+      if(editingId) {
+        updateStudent(editingId, {nombre, edad, curso});
+        editingId = null;
+        form.querySelector('button[type="submit"]').textContent = 'Guardar';
+      } else {
+        addStudent({id: uid(), nombre, edad, curso});
+      }
+      form.reset();
     });
 
-    // init
+    // Delegación de eventos para editar/eliminar
+    document.querySelector('#students-table tbody').addEventListener('click', e=>{
+      const btn = e.target.closest('button');
+      if(!btn) return;
+      const action = btn.dataset.action;
+      const id = btn.dataset.id;
+      if(action === 'edit') {
+        const list = load();
+        const s = list.find(x=>x.id===id);
+        if(!s) return alert('Registro no encontrado.');
+        document.getElementById('nombre').value = s.nombre;
+        document.getElementById('edad').value = s.edad;
+        document.getElementById('curso').value = s.curso;
+        editingId = id;
+        form.querySelector('button[type="submit"]').textContent = 'Actualizar';
+        window.scrollTo({top:0,behavior:'smooth'});
+      } else if(action === 'delete') {
+        if(confirm('Eliminar este estudiante?')) {
+          deleteStudent(id);
+        }
+      }
+    });
+
+    // Búsqueda en tiempo real
+    document.getElementById('search').addEventListener('input', e=>{
+      render(e.target.value);
+    });
+
+    // Limpiar todo
+    document.getElementById('clearAll').addEventListener('click', ()=>{
+      if(!confirm('Eliminar todos los estudiantes?')) return;
+      localStorage.removeItem(KEY);
+      render();
+    });
+
+    // Inicializar (semilla opcional)
+    if(!localStorage.getItem(KEY)) {
+      const seed = [
+        {id: uid(), nombre: 'Ana Pérez', edad: 20, curso: 'Matemáticas'},
+        {id: uid(), nombre: 'Luis Gómez', edad: 22, curso: 'Economía'}
+      ];
+      save(seed);
+    }
+
     render();
   </script>
 </body>
